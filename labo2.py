@@ -60,80 +60,50 @@ plt.legend()
 plt.xlim(-20, -10)
 plt.show()
 
-#partie 2
 X, Y = np.meshgrid(x, y)
-
 
 def masque_circulaire(xc, yc, rayon):
     return (X - xc)**2 + (Y - yc)**2 <= rayon**2
 
-
-def afficher_masque(mask, titre='Masque'):
+def afficher_masque(mask, titre):
     plt.figure()
-    plt.imshow(
-        mask.astype(int),
-        extent=[x.min(), x.max(), y.max(), y.min()],
-        aspect='auto',
-        cmap='viridis',
-        vmin=0, vmax=1
-    )
+    plt.imshow(mask.astype(int), extent=[x.min(), x.max(), y.max(), y.min()], aspect='auto', cmap='viridis', vmin=0, vmax=1)
     plt.colorbar()
     plt.xlabel('Lateral distance [mm]')
     plt.ylabel('Axial distance [mm]')
     plt.title(titre)
     plt.show()
 
-
 def snr_cnr(mask, mu_bg, sigma_bg):
     region = image[mask]
     mu = region.mean()
     sigma = region.std()
-    snr = mu / sigma
+    snr_dB = 20 * np.log10(mu / sigma)
     cnr = abs(mu - mu_bg) / np.sqrt(sigma**2 + sigma_bg**2)
-    snr_dB = 20 * np.log10(snr)
     cnr_dB = 20 * np.log10(cnr) if cnr > 0 else -np.inf
-    return mu, sigma, snr_dB, cnr_dB
+    return snr_dB, cnr_dB
 
-
-# --- Plus grosse zone hyper-échoïque (exemple) ---
-xc, yc, rayon = -5, 80, 3
-mask_inclusion = masque_circulaire(xc, yc, rayon)
-afficher_masque(mask_inclusion, titre='Masque - plus grosse inclusion hyper-échoïque')
-
-mu_i = image[mask_inclusion].mean()
-sigma_i = image[mask_inclusion].std()
-print(f"\nInclusion: mu={mu_i:.4f}, sigma={sigma_i:.4f}")
-
-# --- Zone de fond (background) — teste 2-3 positions/tailles ---
 mask_bg = masque_circulaire(0, 45, 3)
-afficher_masque(mask_bg, titre='Masque - zone de fond')
-
+afficher_masque(mask_bg, 'Masque - zone de fond')
 mu_bg = image[mask_bg].mean()
 sigma_bg = image[mask_bg].std()
-print(f"Background: mu={mu_bg:.4f}, sigma={sigma_bg:.4f}")
 
-# --- SNR / CNR pour la plus grosse inclusion ---
-_, _, snr_dB, cnr_dB = snr_cnr(mask_inclusion, mu_bg, sigma_bg)
+mask_inclusion = masque_circulaire(-5, 80, 3)
+afficher_masque(mask_inclusion, 'Masque - plus grosse inclusion hyper-échoïque')
+snr_dB, cnr_dB = snr_cnr(mask_inclusion, mu_bg, sigma_bg)
 print(f"SNR = {snr_dB:.1f} dB, CNR = {cnr_dB:.1f} dB")
 
-# --- Boucle sur les inclusions hyper-échoïques (x_c = -5 mm) ---
-inclusions_hyper = [
-    (-5, 40, 1), (-5, 50, 1.5), (-5, 60, 2), (-5, 70, 2.5), (-5, 80, 3),
-]  # (xc, yc, rayon) — ajuste selon les vraies positions/diamètres
+inclusions_hyper = [(-5, 40, 1), (-5, 50, 1.5), (-5, 60, 2), (-5, 70, 2.5), (-5, 80, 3)]
+inclusions_hypo = [(10, 40, 1), (10, 50, 1.5), (10, 60, 2), (10, 70, 2.5), (10, 80, 3)]
 
-print("\n--- Hyper-échoïques ---")
+print("--- Hyper-échoïques ---")
 for xc, yc, r in inclusions_hyper:
     mask = masque_circulaire(xc, yc, r)
-    _, _, snr_dB, cnr_dB = snr_cnr(mask, mu_bg, sigma_bg)
+    snr_dB, cnr_dB = snr_cnr(mask, mu_bg, sigma_bg)
     print(f"y={yc} mm, d={2*r}mm — SNR={snr_dB:.1f} dB, CNR={cnr_dB:.1f} dB")
 
-# --- Boucle sur les inclusions hypo-échoïques (x_c = 10 mm) ---
-inclusions_hypo = [
-    (10, 40, 1), (10, 50, 1.5), (10, 60, 2), (10, 70, 2.5), (10, 80, 3),
-]
-
-print("\n--- Hypo-échoïques ---")
+print("--- Hypo-échoïques ---")
 for xc, yc, r in inclusions_hypo:
     mask = masque_circulaire(xc, yc, r)
-    _, _, snr_dB, cnr_dB = snr_cnr(mask, mu_bg, sigma_bg)
+    snr_dB, cnr_dB = snr_cnr(mask, mu_bg, sigma_bg)
     print(f"y={yc} mm, d={2*r}mm — SNR={snr_dB:.1f} dB, CNR={cnr_dB:.1f} dB")
